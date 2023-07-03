@@ -11,18 +11,19 @@ import (
 	"time"
 )
 
-type server interface {
+type HTTPOption func(h *HTTPServer)
+
+type Server interface {
 	// Handler 硬性要求，必须要组合 http.Handler
 	http.Handler
 	// Start 启动服务
 	Start(address string) error
 	// Stop	关闭服务
-	Stop(address string) error
+	Stop() error
 }
 
-type HTTPOption func(h *HTTPServer)
-
 type HTTPServer struct {
+	// http 包下内置的 Server
 	srv *http.Server
 	// 优雅关闭的属性，通过 Option 设计模式来确定
 	stop func() error
@@ -33,7 +34,7 @@ func WithHTTPServerStop(fn func() error) HTTPOption {
 		if fn == nil {
 			fn = func() error {
 				fmt.Println("Default stop function")
-				quit := make(chan os.Signal)
+				quit := make(chan os.Signal, 1)
 				signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 				<-quit
 				log.Println("Shutdown server ...")
@@ -48,6 +49,8 @@ func WithHTTPServerStop(fn func() error) HTTPOption {
 				select {
 				case <-ctx.Done():
 					log.Println("Spend 5 seconds")
+					return nil
+				default:
 					return nil
 				}
 			}
